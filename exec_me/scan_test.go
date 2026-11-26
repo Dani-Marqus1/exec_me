@@ -123,3 +123,34 @@ func TestResolveWebWordlist(t *testing.T) {
 		t.Fatal("missing wordlist accepted")
 	}
 }
+
+func TestExpandedPortLabels(t *testing.T) {
+	for port, want := range map[int]string{
+		88: "Kerberos", 464: "Kerberos password change", 593: "RPC over HTTP",
+		3268: "LDAP Global Catalog", 3269: "LDAPS Global Catalog", 9389: "AD Web Services",
+		445: "SMB", 49666: "unknown",
+	} {
+		if got := portName(port); got != want {
+			t.Errorf("port %d: got %q, want %q", port, got, want)
+		}
+	}
+}
+
+func TestContextualRPCLabel(t *testing.T) {
+	for _, tc := range []struct {
+		port int
+		open []int
+		want string
+	}{
+		{49666, []int{135, 445, 88, 49666}, "Possible Dynamic RPC (unverified)"},
+		{65535, []int{135, 445, 389, 65535}, "Possible Dynamic RPC (unverified)"},
+		{49666, []int{135, 49666}, "unknown"},
+		{49666, []int{135, 445, 49666}, "unknown"},
+		{49151, []int{135, 445, 88, 49151}, "unknown"},
+		{88, []int{135, 445, 88}, "Kerberos"},
+	} {
+		if got := scanPortName(tc.port, tc.open); got != tc.want {
+			t.Errorf("port %d, open %v: got %q, want %q", tc.port, tc.open, got, tc.want)
+		}
+	}
+}

@@ -33,12 +33,16 @@ SUPPORTED SERVICES
   465, 636, 993, 995     TLS services            TLS details / certificate validation
 
   Other ports can still be TCP-scanned, including DNS (53), LDAP (389),
+  Kerberos (88,464), Global Catalog (3268,3269), ADWS (9389),
   RDP (3389), MySQL (3306), PostgreSQL (5432), Redis (6379), and more.
   These are currently PORT LABELS ONLY; no protocol-specific checks run.
   Port labels are educated guesses, not confirmed service fingerprints.
+  High ports may be labelled possible dynamic RPC if Windows RPC, SMB,
+  and directory-service indicators are present in the same scan.
 
 AUTHENTICATION
   exec_me auth -help     Single-credential checks on discovered FTP, SMB, HTTP Basic and WinRM NTLM endpoints
+                         Prints SMB share names/types from the existing listing response.
                          Cleartext FTP/HTTP requires -allow-cleartext.
                          WinRM needs python3 + pywinrm; HTTP requires -allow-winrm-http.
                          SSH, LDAP and other authentication protocols are not implemented.

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const version = "0.5.0"
+const version = "0.7.0"
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "-help" || os.Args[1] == "help" {
@@ -106,7 +106,7 @@ func main() {
 		out.note("No open TCP ports detected in the selected range")
 	}
 	for _, port := range openPorts {
-		out.open(port, portName(port))
+		out.open(port, scanPortName(port, openPorts))
 	}
 	if *enumerate || *gobuster {
 		gopts := gobusterOptions{enabled: *gobuster, wordlist: *gobusterWordlist, threads: *gobusterThreads, timeout: *gobusterTimeout, extensions: *gobusterExt, insecure: *gobusterInsecure}

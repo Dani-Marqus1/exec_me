@@ -136,10 +136,10 @@ func authFTP(ctx context.Context, host string, port int, user, pass string, time
 		return "ERROR", "FTP PASS response unavailable"
 	}
 	if code == 230 {
-		return "VALID", "FTP login accepted"
+		return "VALID", "FTP login accepted (230)"
 	}
 	if code == 530 {
-		return "INVALID", "FTP login denied (credentials or policy)"
+		return "INVALID", "FTP login denied (530; credentials or policy)"
 	}
 	return "UNVERIFIED", fmt.Sprintf("FTP response %d", code)
 }
@@ -178,10 +178,10 @@ func authHTTP(ctx context.Context, url, user, pass string, timeout time.Duration
 	}
 	defer r.Body.Close()
 	if r.StatusCode == 401 {
-		return "INVALID", "HTTP Basic login denied"
+		return "INVALID", "HTTP Basic login denied (HTTP 401)"
 	}
 	if r.StatusCode >= 200 && r.StatusCode < 300 {
-		return "VALID", "Basic challenge followed by successful response"
+		return "VALID", fmt.Sprintf("Basic challenge followed by successful response (HTTP %d)", r.StatusCode)
 	}
 	return "UNVERIFIED", fmt.Sprintf("HTTP status %d", r.StatusCode)
 }
@@ -209,18 +209,44 @@ func authSMB(ctx context.Context, host string, port int, user, pass, domain stri
 	}
 	cmd.Env = append(cmd.Env, "PASSWD="+pass)
 	data, err := cmd.CombinedOutput()
-	s := strings.ToUpper(string(data))
+	return smbAuthResult(string(data), err, cctx.Err(), pass)
+}
+
+// Display only shares already returned by the existing listing request.
+// A share name is not evidence of read/write access or a non-guest session.
+func smbAuthResult(data string, requestErr, contextErr error, password string) (string, string) {
+	s := strings.ToUpper(data)
 	if strings.Contains(s, "NT_STATUS_ACCOUNT_LOCKED_OUT") {
 		return "LOCKED", "SMB reported account lockout"
 	}
 	if strings.Contains(s, "NT_STATUS_LOGON_FAILURE") || strings.Contains(s, "NT_STATUS_WRONG_PASSWORD") {
 		return "INVALID", "SMB login denied"
 	}
-	if err == nil {
-		return "UNVERIFIED", "SMB session/share request succeeded; guest fallback not excluded"
-	}
-	if cctx.Err() != nil {
+	if contextErr != nil {
 		return "ERROR", "SMB timed out"
+	}
+	shares := parseSMBShares(data)
+	if requestErr == nil || len(shares) > 0 {
+		detail := "SMB share response received; guest fallback not excluded"
+		if requestErr != nil {
+			detail += " (listing command exited with an error)"
+		}
+		if len(shares) == 0 {
+			return "UNVERIFIED", detail + "; no share names returned"
+		}
+		detail += fmt.Sprintf("\n    Returned shares (%d; access permissions not tested):", len(shares))
+		for i, share := range shares {
+			if i == 100 {
+				detail += "\n    ... remaining shares omitted"
+				break
+			}
+			name := share.name
+			if password != "" {
+				name = strings.ReplaceAll(name, password, "[redacted]")
+			}
+			detail += fmt.Sprintf("\n    %-8s %s", share.kind, clean(name))
+		}
+		return "UNVERIFIED", detail
 	}
 	return "UNVERIFIED", "SMB request unsuccessful; identity not confirmed"
 }

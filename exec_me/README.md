@@ -124,7 +124,7 @@ Full protocol fingerprinting (instead of port guesses), integration tests with a
 
 Released for learning and authorized security testing. Do not target systems without authorization.
 
-## Authentication (v0.5.0)
+## Authentication (v0.7.0)
 
 One host, one supplied username/password, sequential checks on discovered compatible ports. No password lists or retries. SMB uses only one endpoint (445 preferred). Account lockout can be shared across protocols; confirm the lockout policy first. SSH/LDAP authentication is not implemented. WinRM uses NTLM with a read-only WS-Management configuration Get; no remote shell or command execution. HTTPS (5986) is preferred and HTTP (5985) requires explicit opt-in. A successful Get proves access to the resource; insufficient permissions or transport errors may be UNVERIFIED even with valid credentials. HTTP Basic is checked only if the root endpoint advertises it. SMB success is marked UNVERIFIED because guest fallback is possible.
 
@@ -150,3 +150,14 @@ unset EXEC_ME_PASSWORD
 Ports 5985 and 5986 are already in the common list. If both are open, only 5986 is tested; there is no fallback after failure. HTTPS certificate verification is enforced. HTTP uses pywinrm NTLM message encryption (auto); NTLM over HTTP does not authenticate the server, so only enable it in a trusted isolated lab. A Negotiate challenge is not proof that the server accepts NTLM. Kerberos-only servers are not supported. The helper is not a shell or command runner.
 
 Go tests cover endpoint challenge handling; live Windows authentication and the optional pywinrm dependency have not been tested in the build environment.
+
+### v0.6 output changes
+
+The existing `auth` command now displays SMB share names and types returned by its original `smbclient -L` request (up to 100 names). It does not open shares, check read/write permissions, download files, or make additional authentication attempts. SMB identity remains UNVERIFIED because guest fallback is possible. FTP and HTTP authentication messages include their response status codes; WinRM retains its existing configuration-read status. All previous scanner features and opt-in transport safeguards remain unchanged.
+
+### v0.7.0 service labels
+
+- Expanded conventional TCP port labels, including Kerberos (88/464), RPC over HTTP (593), Global Catalog (3268/3269), and AD Web Services (9389).
+- Unknown ports in 49152–65535 are labelled possible dynamic RPC only if the same scan finds TCP 135, 445 and a directory/RPC indicator (88, 389, 593, 3268 or 9389).
+- These labels are not protocol fingerprints. Other high ports remain unknown; no new protocol probes or authentication adapters are added.
+- Default common-port list, authentication behavior, and existing service checks remain unchanged.
